@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lai CMD Simulation</title>
+    <style>
+        body {
+            font-family: Consolas, monospace;
+            background-color: #1e1e1e;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #tabs {
+            display: flex;
+            justify-content: flex-start;
+            background-color: #333;
+            padding: 5px 0;
+            cursor: pointer;
+        }
+
+        #tabs div {
+            padding: 12px 18px;
+            margin-right: 5px;
+            background-color: #444;
+            color: #bbb;
+            border-radius: 5px 5px 0 0;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        #tabs div.active {
+            background-color: #1e1e1e;
+            color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background-color: #1e1e1e;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        #console {
+            width: 100%;
+            height: 70vh;
+            overflow-y: auto;
+            background-color: #000;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .prompt {
+            color: #00FF00;
+        }
+
+        .output {
+            color: #FFFFFF;
+        }
+
+        #userInput {
+            width: 100%;
+            padding: 10px;
+            color: #00FF00;
+            background-color: #000;
+            border: none;
+            font-family: Consolas, monospace;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .suggestionBox {
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+
+        .suggestionBox input {
+            width: 80%;
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #666;
+        }
+
+        .suggestionBox button {
+            padding: 8px 15px;
+            margin-top: 10px;
+            background-color: #555;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .suggestionBox button:hover {
+            background-color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div id="tabs">
+        <div id="aiTab" class="tab active" onclick="switchTab('ai')">AI Console</div>
+        <div id="suggestionTab" class="tab" onclick="switchTab('suggestion')">Suggestions</div>
+    </div>
+
+    <div id="aiContent" class="tab-content active">
+        <div id="console"></div>
+        <input type="text" id="userInput" autofocus placeholder="Type a command...">
+    </div>
+
+    <div id="suggestionContent" class="tab-content">
+        <div class="suggestionBox">
+            <p>you can add your suggestions to the AI here:</p>
+            <input type="text" id="suggestedResponse" placeholder="Suggested response">
+            <button onclick="sendSuggestion()">Send Suggestion</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+    <script>
+        // Initialize EmailJS
+        emailjs.init("fmwYD8DAojsvufds2"); // Replace YOUR_USER_ID with your EmailJS user ID
+
+        const consoleElement = document.getElementById('console');
+        const userInput = document.getElementById('userInput');
+        const suggestionBox = document.getElementById('suggestionContent');
+        const suggestedResponse = document.getElementById('suggestedResponse');
+        const aiTab = document.getElementById('aiTab');
+        const suggestionTab = document.getElementById('suggestionTab');
+        const aiContent = document.getElementById('aiContent')
+        const suggestionContent = document.getElementById('suggestionContent');
+
+        // Store predefined conversational words
+        let conversationalWords = {
+            "hi": "Hello!",
+            "hello": "Hi there!",
+            "how are you": "I'm good, how about you?",
+            "good morning": "Good morning! How can I help you today?",
+            "good evening": "Good evening! How's it going?",
+            "bye": "Goodbye, take care!",
+            "thanks": "You're welcome!",
+            "please": "Sure, what can I do for you?",
+            "sorry": "No problem!",
+            "what is your name": "My name is Lai.",
+            "what's up": "Not much, how about you?",
+            "how's it going": "Everything's going great, thanks!",
+            "nice to meet you": "Nice to meet you too!",
+            "see you later": "See you soon!",
+            "take care": "You too! Stay safe.",
+            "have a good day": "Thank you, you too!",
+            "good night": "Good night, sleep well!",
+            "how can I help": "What can I do for you?",
+            "thank you": "You're welcome!",
+            "welcome": "Thank you! How can I assist you today?",
+            "how old are you": "I don't have an age, but I was created recently!",
+            "where are you from": "I'm from the digital world!",
+            "what do you do": "I assist with answering questions and providing information.",
+            "who are you": "I am Lai, your AI assistant.",
+            "do you like jokes": "I love jokes! Want to hear one?",
+            "tell me a joke": "Sure! Why don’t skeletons fight each other? They don’t have the guts.",
+            "can you help me": "Of course! What do you need help with?",
+            "what's your favorite color": "I don't have a favorite color, but I think blue looks nice.",
+            "are you real": "I am as real as your computer screen!",
+            "what can you do": "I can answer questions, tell jokes, and help with various tasks!",
+            "can you play music": "I can't play music directly, but I can recommend some great songs!",
+            "do you have a pet": "I don't have a pet, but I think pets are awesome!",
+            "do you have feelings": "I don't have feelings, but I’m here to help you!",
+            "what is love": "Love is a complex feeling between people. It can be beautiful and powerful.",
+            "what is the meaning of life": "The meaning of life is a question many ponder. It could be different for everyone.",
+            "who is your creator": "I was created by a team of developers and researchers.",
+            "where do you live": "I live in the cloud, where data flows like air!",
+            "can you tell me the weather": "I don’t have weather info, but you can easily check your weather app.",
+            "what time is it": "I don't know the exact time, but you can check your device for the current time!",
+            "tell me something interesting": "Did you know honey never spoils? Archaeologists have found pots of honey in ancient tombs!",
+            "what is your favorite movie": "I don't watch movies, but I know a lot about them!"
+        };
+
+        // Handle input commands
+        function handleInput(input) {
+            const userText = input.toLowerCase().trim();
+            let response = '';
+
+            // Check if the command exists in conversationalWords
+            if (conversationalWords[userText]) {
+                response = conversationalWords[userText];
+            } else {
+                response = "you can send suggestions on the AI here?";
+                suggestionBox.style.display = 'block'; // Show the suggestion box to send the AI a response
+            }
+
+            displayInConsole(input, response);
+        }
+
+        // Send suggestion to Gmail via EmailJS
+        function sendSuggestion() {
+            const userText = userInput.value.toLowerCase().trim();
+            const newResponse = suggestedResponse.value;
+
+            // Check if the suggestion input is empty
+            if (!newResponse) {
+                alert("Please provide a suggestion.");
+                return;
+            }
+
+            // Create the email content
+            const emailContent = {
+                to_email: "anybody12351@gmail.com",  // Replace with your Gmail address
+                from_name: "Suggestion from Lai",
+                subject: "User Suggestion for Unrecognized Command",
+                message: `User tried command: "${userText}"\nSuggested Response: "${newResponse}"`,
+            };
+
+            // Send the email using EmailJS
+            emailjs.send("service_fci3x61", "template_4gvs2zf", emailContent)
+                .then(function(response) {
+                    alert("Suggestion sent successfully!");
+                    suggestedResponse.value = ''; // Clear the suggestion box
+                    suggestionBox.style.display = 'none'; // Hide the suggestion box again
+                }, function(error) {
+                    console.error("Error sending suggestion:", error); // Log error to console for debugging
+                    alert("Failed to send suggestion. Please try again later.");
+                });
+        }
+
+        // Display user input and AI response in the console
+        function displayInConsole(input, response) {
+            const consoleOutput = document.createElement('div');
+            consoleOutput.classList.add('output');
+            consoleOutput.innerHTML = `<div class="prompt">> ${input}</div><div>${response}</div>`;
+            consoleElement.appendChild(consoleOutput);
+            consoleElement.scrollTop = consoleElement.scrollHeight; // Scroll to the latest input
+        }
+
+        // Switch between AI and Suggestions tabs
+        function switchTab(tab) {
+            if (tab === 'ai') {
+                aiTab.classList.add('active');
+                suggestionTab.classList.remove('active');
+                aiContent.classList.add('active');
+                suggestionContent.classList.remove('active');
+            } else {
+                aiTab.classList.remove('active');
+                suggestionTab.classList.add('active');
+                aiContent.classList.remove('active');
+                suggestionContent.classList.add('active');
+            }
+        }
+
+        // Event listener for user input
+        userInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                const input = userInput.value.trim();
+                if (input) {
+                    handleInput(input);
+                    userInput.value = ''; // Clear input after sending
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>
